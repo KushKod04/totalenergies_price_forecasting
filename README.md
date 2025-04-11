@@ -11,6 +11,10 @@ Common abbreviations:
     - the price of delivering the next megawatt of electricity to a specific location on hte grid
 - dam = day ahead market
     - a forward market where participants buy/sell electricity for delivery one day in advance, on an hourly basis
+- asm = ancillary services market
+    - backup reliability services ERCOT procures to ensure grid stability
+- cpc = clearing prices for capacity
+    - price paid per MW of ancillary service capacity awarded
 
 
 **How to understand the data files**:
