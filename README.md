@@ -1,23 +1,22 @@
 # totalenergies_electricity_data
-Electricity data used for short-term price forecasting for TotalEnergies consulting project
 
-
-Common abbreviations:
-- spp = settlement point prices
-    - the locational price at a specific node or hub in the ERCOT grid
-- rtm = real-time market
+**Common abbreviations:**
+- SPP = Settlement Point Prices
+    - The locational price at a specific node or hub in the ERCOT grid
+- RTM = Real-Time Market
     - ERCOT's market for near-instantaneous electricity dispatch and pricing, updated every 5 minutes
-- lmp = locational marginal pricing
-    - the price of delivering the next megawatt of electricity to a specific location on hte grid
-- dam = day ahead market
-    - a forward market where participants buy/sell electricity for delivery one day in advance, on an hourly basis
-- asm = ancillary services market
-    - backup reliability services ERCOT procures to ensure grid stability
-- cpc = clearing prices for capacity
-    - price paid per MW of ancillary service capacity awarded
+- LMP = locational marginal pricing
+    - The price of delivering the next megawatt of electricity to a specific location on hte grid
+- DAM = Day-Ahead Market
+    - A forward market where participants buy/sell electricity for delivery one day in advance, on an hourly basis
+- ASM = Ancillary Services Market
+    - Backup reliability services ERCOT procures to ensure grid stability
+- CPC = Clearing Prices for Capacity
+    - Price paid per MW of ancillary service capacity awarded
 
 
-**How to understand the data files**:
+**How to understand the data files -- `./data/raw`**:
+- Raw electricity price & feature data used for short-term price forecasting for TotalEnergies consulting project
 - Any files marked with "gridstatus" have been downloaded using the ERCOT API. All other data files are downloaded off the ERCOT website.
 - The year or months that the data goes over have been specified in the filename.
 
