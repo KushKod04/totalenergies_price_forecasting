@@ -11,3 +11,17 @@ context_length: 8760  # number of previous time steps used for training
 granularity: 60  # number of minutes between data samples
 
 random_state: 42
+
+models:
+  XGBoost:
+    objective: reg:squarederror
+    n_estimators: 200
+  LightGBM:
+    objective: regression
+    n_estimators: 200
+  CatBoost:
+    iterations: 200
+    verbose: 0
+  RandomForest:
+    n_estimators: 200
+  Ridge: {}

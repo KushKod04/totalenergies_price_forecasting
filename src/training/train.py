@@ -4,10 +4,10 @@ import pandas as pd
 import yaml
 
 from catboost import CatBoostRegressor
-import lightgbm as lgb
+from lightgbm import LGBMRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge
-import xgboost as xgb
+from xgboost import XGBRegressor
 
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
@@ -79,17 +79,27 @@ def train_models(X, y, price_col, granularity=60, random_state=42, kwargs={}):
     y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
 
     # Define the model candidates that you want to use – you can change this
-    model_defs = {
-        "XGBoost": xgb.XGBRegressor(objective="reg:squarederror", n_estimators=200, random_state=random_state),
-        "LightGBM": lgb.LGBMRegressor(objective="regression", n_estimators=200, random_state=random_state),
-        "CatBoost": CatBoostRegressor(verbose=0, iterations=200, random_state=random_state),
-        "RandomForest": RandomForestRegressor(n_estimators=200, random_state=random_state),
-        "Ridge": Ridge(),
+    model_constructors = {
+        "XGBoost": XGBRegressor,
+        "LightGBM": LGBMRegressor,
+        "CatBoost": CatBoostRegressor,
+        "RandomForest": RandomForestRegressor,
+        "Ridge": Ridge,
     }
+    model_config = kwargs.get("models", {})
 
     # Train and evaluate each model
-    for model_name, model in model_defs.items():
+    for model_name, params in model_config.items():
+        if model_name not in model_constructors:
+            print(f"⚠️ Skipping unknown model: {model_name}")
+            continue
+
         print(f"Training {model_name}...")
+
+        if "random_state" in model_constructors[model_name]().__init__.__code__.co_varnames:
+            params.setdefault("random_state", random_state)
+
+        model = model_constructors[model_name](**params)
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
 
@@ -121,10 +131,6 @@ def main(args):
     X = read_table(config["data_path"], parse_dates=[config["datetime_col"]])
     y_df = read_table(config["label_path"], parse_dates=[config["datetime_col"]])
 
-    # Sort both by timestamp
-    # X = X.sort_values(by=config["datetime_col"]).reset_index(drop=True)
-    # y_df = y_df.sort_values(by=config["datetime_col"]).reset_index(drop=True)
-
     # Ensure alignment
     assert len(X) == len(y_df), "Mismatch between feature and label data lengths"
 
@@ -148,6 +154,7 @@ def main(args):
         price_col=config["price_col"],
         granularity=config['granularity'],
         random_state=config["random_state"],
+        kwargs=config,
     )
 
 
