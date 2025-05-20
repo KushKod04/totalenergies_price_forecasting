@@ -1,0 +1,13 @@
+# example configuration file
+
+data_path: "./data/processed/solar_data_2022_to_2024.xlsx"  # path to feature data
+label_path: "./data/prices/DAMASMCPC_2022_to_2025.csv"  # path to price data (DAM or RTM)
+
+price_col: "REGDN"  # name of the price column in csv
+datetime_col: "timestamp"  # common datetime column (must exist in both files)
+
+forecast_horizon: 48  # number of time steps to forecast
+context_length: 8760  # number of previous time steps used for training
+granularity: 60  # number of minutes between data samples
+
+random_state: 42
