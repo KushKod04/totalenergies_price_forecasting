@@ -73,7 +73,7 @@ def train_models(X, y, price_col, granularity=60, random_state=42, kwargs={}):
     X_features = X[feature_cols]
 
     # change this logic based on the data to make sure you forecast on 2 days
-    split_idx = get_split_index(len(X), kwargs.pop("granularity"))
+    split_idx = get_split_index(len(X), granularity)
 
     X_train, X_test = X_features.iloc[:split_idx], X_features.iloc[split_idx:]
     y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
