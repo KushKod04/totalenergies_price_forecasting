@@ -1,0 +1,13 @@
+name: te_env
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.10
+  - catboost
+  - lightgbm
+  - numpy
+  - openpyxl
+  - pandas
+  - scikit-learn
+  - xgboost
+  - yaml
