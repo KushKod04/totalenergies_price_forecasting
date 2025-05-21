@@ -1,4 +1,6 @@
 import argparse
+from datetime import datetime
+import joblib
 import os
 import pandas as pd
 import yaml
@@ -37,7 +39,20 @@ def get_split_index(data_length: int, granularity: int) -> int:
     else:
         raise ValueError(f"Unsupported granularity: {granularity}")
 
-def train_models(X, y, price_col, granularity=60, random_state=42, kwargs={}):
+def save_models(model_dict: dict, save_path: str) -> None:
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    save_dir = os.path.join(save_path, f"models_{timestamp}")
+    os.makedirs(save_dir, exist_ok=True)
+
+    # save each model using joblib
+    for name, model in model_dict.items():
+        save_path = os.path.join(save_dir, f"{name}.pkl")
+        joblib.dump(model, save_path)
+        print(f"✅ Saved {name} model to {save_path}")
+
+    return
+
+def train_models(X, y, price_col, granularity=60, random_state=42, kwargs={}) -> None:
     """
     Train multiple time series models given feature matrix X, target y, and price column name.
 
@@ -110,6 +125,9 @@ def train_models(X, y, price_col, granularity=60, random_state=42, kwargs={}):
     print("\nTraining completed. Evaluation metrics:")
     for model_name, metric in metrics.items():
         print(f"{model_name}: MAE={metric['MAE']:.4f}, RMSE={metric['RMSE']:.4f}")
+
+    save_path = kwargs.pop("save_path", "")
+    save_models(models, save_path)
 
     return models, metrics
 
