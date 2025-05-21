@@ -7,7 +7,7 @@ save_path: "./models/solar_models/"  # directory to save the trained models
 price_col: "REGDN"  # name of the price column in csv
 datetime_col: "datetime_col"  # common datetime column (must exist in both files)
 
-forecast_horizon: 48  # number of time steps to forecast
+forecast_horizon: 48  # number of time steps (in hours) to forecast
 context_length: 8760  # number of previous time steps used for training
 granularity: 60  # number of minutes between data samples
 
