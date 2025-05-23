@@ -5,7 +5,7 @@ import os
 import pandas as pd
 import yaml
 
-from catboost import CatBoostRegressor
+# from catboost import CatBoostRegressor
 from lightgbm import LGBMRegressor
 # import lightgbm as lgb
 from sklearn.ensemble import RandomForestRegressor
@@ -123,6 +123,9 @@ def train_models(X, y, price_col, granularity=60, horizon=48, context=168, rando
     # time shift the axes
     X_features, y = time_shift_data(X=X_features, y=y, horizon=horizon, context=context)
 
+    # Debugs error: lightgbm.basic.LightGBMError: Do not support special JSON characters in feature name.
+    X_features.columns = X_features.columns.str.replace('[^A-Za-z0-9_]', '_', regex=True)
+
     # change this logic based on the data to make sure you forecast on 2 days
     split_idx = get_split_index(len(X_features), granularity=granularity, horizon=horizon)
 
@@ -132,8 +135,8 @@ def train_models(X, y, price_col, granularity=60, horizon=48, context=168, rando
     # Define the model candidates that you want to use – you can change this
     model_constructors = {
         "XGBoost": XGBRegressor,
-        # "LightGBM": LGBMRegressor,
-        "CatBoost": CatBoostRegressor,
+        "LightGBM": LGBMRegressor,
+        # "CatBoost": CatBoostRegressor,
         "RandomForest": RandomForestRegressor,
         # "Ridge": Ridge,
     }
