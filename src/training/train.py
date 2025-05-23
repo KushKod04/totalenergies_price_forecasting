@@ -1,20 +1,18 @@
 import argparse
+from datetime import datetime
+import joblib
 import os
 import pandas as pd
 import yaml
 
-from catboost import CatBoostRegressor
+# from catboost import CatBoostRegressor
 from lightgbm import LGBMRegressor
+# import lightgbm as lgb
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge
 from xgboost import XGBRegressor
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-
-
-def parse_yaml_config(path: str) -> dict:
-    with open(path, "r") as f:
-        return yaml.safe_load(f)
 
 def read_table(filepath: str, parse_dates=None) -> pd.DataFrame:
     ext = os.path.splitext(filepath)[1].lower()
@@ -26,21 +24,59 @@ def read_table(filepath: str, parse_dates=None) -> pd.DataFrame:
     else:
         raise ValueError(f"Unsupported file extension: {ext}")
 
-def get_split_index(data_length: int, granularity: int) -> int:
+
+# TODO (Anusha/Shweta): Fill this function in with their code
+def time_shift_data(X: pd.DataFrame, y: pd.DataFrame, horizon: int, context: int) -> list[pd.DataFrame, pd.DataFrame]:
+
+    # shift target price column by -forecast_horizon
+    y_shifted = y.shift(-horizon)
+
+    # drop rows with NaNs caused by shift (they occur at the end)
+    valid_idx = y_shifted.dropna().index
+
+    # align X and y so that input X[t] corresponds to output y[t+horizon]
+    X_supervised = X.loc[valid_idx]
+    y_supervised = y_shifted.loc[valid_idx]
+
+    # Optional: Reset index if you want a clean DataFrame
+    X_supervised = X_supervised.reset_index(drop=True)
+    y_supervised = y_supervised.reset_index(drop=True)
+
+    return X_supervised, y_supervised
+
+
+def get_split_index(data_length: int, granularity: int, horizon: int) -> int:
     if granularity == 60:
-        return data_length - 48
+        return data_length - horizon
     elif granularity == 30:
-        return data_length - 48 * 2
+        return data_length - horizon * 2
     elif granularity == 15:
-        return data_length - 48 * 4
+        return data_length - horizon * 4
     elif granularity == 5:
-        return data_length - 48 * 12
+        return data_length - horizon * 12
     elif granularity == 120:
-        return data_length - 24
+        return data_length - horizon // 2
+    elif granularity == 180:
+        return data_length - horizon // 3
+    elif granularity == 240:
+        return data_length - horizon // 4
     else:
         raise ValueError(f"Unsupported granularity: {granularity}")
 
-def train_models(X, y, price_col, granularity=60, random_state=42, kwargs={}):
+def save_models(model_dict: dict, save_path: str) -> None:
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    save_dir = os.path.join(save_path, f"models_{timestamp}")
+    os.makedirs(save_dir, exist_ok=True)
+
+    # save each model using joblib
+    for name, model in model_dict.items():
+        save_path = os.path.join(save_dir, f"{name}.pkl")
+        joblib.dump(model, save_path)
+        print(f"✅ Saved {name} model to {save_path}")
+
+    return
+
+def train_models(X, y, price_col, granularity=60, horizon=48, context=168, random_state=42, kwargs={}) -> None:
     """
     Train multiple time series models given feature matrix X, target y, and price column name.
 
@@ -54,6 +90,10 @@ def train_models(X, y, price_col, granularity=60, random_state=42, kwargs={}):
         Name of the price column in X (for reference).
     granularity : int
         The number of minutes between data samples.
+    forecast_horizon : int
+        The number of time steps to make predictions for. Number of rows of test data.
+    context_length : int
+        The number of time steps of data to use as context for training. Number of rows of train data.
     random_state : int
         Random state for reproducibility.
 
@@ -72,8 +112,14 @@ def train_models(X, y, price_col, granularity=60, random_state=42, kwargs={}):
     feature_cols = [col for col in X.columns if col != price_col]
     X_features = X[feature_cols]
 
+    # time shift the axes
+    X_features, y = time_shift_data(X=X_features, y=y, horizon=horizon, context=context)
+
+    # Debugs error: lightgbm.basic.LightGBMError: Do not support special JSON characters in feature name.
+    X_features.columns = X_features.columns.str.replace('[^A-Za-z0-9_]', '_', regex=True)
+
     # change this logic based on the data to make sure you forecast on 2 days
-    split_idx = get_split_index(len(X), granularity)
+    split_idx = get_split_index(len(X_features), granularity=granularity, horizon=horizon)
 
     X_train, X_test = X_features.iloc[:split_idx], X_features.iloc[split_idx:]
     y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
@@ -82,9 +128,9 @@ def train_models(X, y, price_col, granularity=60, random_state=42, kwargs={}):
     model_constructors = {
         "XGBoost": XGBRegressor,
         "LightGBM": LGBMRegressor,
-        "CatBoost": CatBoostRegressor,
+        # "CatBoost": CatBoostRegressor,
         "RandomForest": RandomForestRegressor,
-        "Ridge": Ridge,
+        # "Ridge": Ridge,
     }
     model_config = kwargs.get("models", {})
 
@@ -105,7 +151,7 @@ def train_models(X, y, price_col, granularity=60, random_state=42, kwargs={}):
 
         # Calculate metrics
         mae = mean_absolute_error(y_test, y_pred)
-        rmse = mean_squared_error(y_test, y_pred, squared=False)
+        rmse = root_mean_squared_error(y_test, y_pred)
 
         models[model_name] = model
         metrics[model_name] = {"MAE": mae, "RMSE": rmse}
@@ -114,27 +160,35 @@ def train_models(X, y, price_col, granularity=60, random_state=42, kwargs={}):
     for model_name, metric in metrics.items():
         print(f"{model_name}: MAE={metric['MAE']:.4f}, RMSE={metric['RMSE']:.4f}")
 
+    save_path = kwargs.pop("save_path", "")
+    save_models(models, save_path)
+
     return models, metrics
 
 
 def main(args):
     # Load YAML
-    config = parse_yaml_config(args.config)
-
-    # Override YAML values from CLI if provided
-    if args.forecast_horizon is not None:
-        config["forecast_horizon"] = args.forecast_horizon
-    if args.context_length is not None:
-        config["context_length"] = args.context_length
+    with open(args.config, "r") as f:
+        config = yaml.safe_load(f)
+    print('config :: ', config)
 
     # Load feature and label data
     X = read_table(config["data_path"], parse_dates=[config["datetime_col"]])
     y_df = read_table(config["label_path"], parse_dates=[config["datetime_col"]])
 
-    # Ensure alignment
-    assert len(X) == len(y_df), "Mismatch between feature and label data lengths"
+    datetime_col = config["datetime_col"]
+    assert datetime_col in X.columns and datetime_col in y_df.columns, \
+        f"{datetime_col} must exist in both feature and label files"
 
-    y = y_df[config["price_column"]]
+    # Set datetime column as index for alignment --> take intersection
+    X = X.set_index(datetime_col)
+    y_df = y_df.set_index(datetime_col)
+    common_index = X.index.intersection(y_df.index)
+
+    # Filter X and y by overlapping range
+    X = X.loc[common_index].sort_index()
+    y_df = y_df.loc[common_index].sort_index()
+    y = y_df[config["price_col"]]
 
     # Truncate to (context_length + forecast_horizon)
     total_length = len(X)
@@ -146,6 +200,7 @@ def main(args):
 
     X = X.iloc[-(context + horizon):].reset_index(drop=True)
     y = y.iloc[-(context + horizon):].reset_index(drop=True)
+    print('Prepared X and y dataframes for training...')
 
     # Train models
     train_models(
@@ -153,6 +208,8 @@ def main(args):
         y=y,
         price_col=config["price_col"],
         granularity=config['granularity'],
+        horizon=horizon,
+        context=context,
         random_state=config["random_state"],
         kwargs=config,
     )
@@ -168,5 +225,6 @@ if __name__ == "__main__":
         help="Path to YAML configuration file"
     )
     args = parser.parse_args()
+    print('Parsed input arguments...')
 
     main(args)
