@@ -28,10 +28,6 @@ def read_table(filepath: str, parse_dates=None) -> pd.DataFrame:
 # TODO (Anusha/Shweta): Fill this function in with their code
 def time_shift_data(X: pd.DataFrame, y: pd.DataFrame, horizon: int, context: int) -> list[pd.DataFrame, pd.DataFrame]:
 
-    # print the original shapes
-    print(f"Shape of X: {X.shape}")
-    print(f"Shape of y: {y.shape}")
-
     # shift target price column by -forecast_horizon
     y_shifted = y.shift(-horizon)
 
@@ -41,10 +37,6 @@ def time_shift_data(X: pd.DataFrame, y: pd.DataFrame, horizon: int, context: int
     # align X and y so that input X[t] corresponds to output y[t+horizon]
     X_supervised = X.loc[valid_idx]
     y_supervised = y_shifted.loc[valid_idx]
-
-    # print the shapes to confirm
-    print(f"Shape of X_supervised: {X_supervised.shape}")
-    print(f"Shape of y_supervised: {y_supervised.shape}")
 
     # Optional: Reset index if you want a clean DataFrame
     X_supervised = X_supervised.reset_index(drop=True)
